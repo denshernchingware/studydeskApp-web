@@ -2,9 +2,9 @@
 
 ## Implementation status
 
-The subject migration, owner relationship, owner-scoped Filament resource, searchable list, create/edit validation, and confirmed single-record deletion are implemented. Subject creation assigns both the signed-in owner and their active semester on the server. The list defaults to the active-semester filter and offers prior semesters and legacy unassigned records as filters. Timetable slots now cascade when their subject is deleted; attendance-record cleanup will be enforced when module 04 adds that table.
+The subject migration, owner relationship, owner-scoped Filament resource, searchable list, create/edit validation, and confirmed single-record deletion are implemented. Subject creation assigns both the signed-in owner and their active semester on the server. The list defaults to the active-semester filter and offers prior semesters and legacy unassigned records as filters. Timetable slots cascade when their subject is deleted, and attendance records cascade through those slots.
 
-Subject-level weekly-slot counts, attendance rates, completion state, page summaries, and attendance cascades remain for the shared-statistics and attendance modules. Timetable-slot relations and subject-delete cascades are implemented in module 03.
+Subject-level weekly-slot counts, attendance rates, completion state, and page summaries remain for the shared-statistics module. Timetable-slot relations and cascading attendance cleanup are implemented in modules 03 and 04.
 
 ## Goal
 
@@ -22,12 +22,12 @@ Rebuild the source's subject list and add/edit/delete flows as an owner-scoped F
 ## Implementation steps
 
 1. [x] Create the subject migration and model with owner, semester, and timestamps. Add indexes and a composite constraint preventing a subject from referencing another owner's semester.
-2. [x] Define the subject-to-user and subject-to-slot relationships, with slots cascading on subject deletion. Attendance cascade behavior follows with module 04.
+2. [x] Define the subject-to-user and subject-to-slot relationships, with slots cascading on subject deletion. Attendance records cascade through the deleted slots.
 3. [x] Generate a Filament v5 Subject resource with a schema for the source fields and a searchable table for name/code.
 4. [x] Validate name length, code length, color choices, and positive integer target on both create and edit.
 5. [x] Scope every query and mutation to the current owner and default subject listing to the active semester. Ensure a crafted record URL cannot open or update another user's subject.
 6. [ ] Add table columns or infolist details for code, target, marked count, attendance rate, and completion state. Keep computed values out of duplicated stored columns. (Code and target are implemented; attendance-derived values depend on module 04.)
-7. [x] Add an explicit delete confirmation that says linked timetable slots and attendance marks will also be removed, matching the source's destructive behavior. Slot cascades are implemented; attendance cascades follow with module 04.
+7. [x] Add an explicit delete confirmation that says linked timetable slots and attendance marks will also be removed, matching the source's destructive behavior. Both cascades are implemented.
 8. [ ] Add the subjects summary as a page header or dashboard widget only after the shared statistics logic exists; avoid duplicating formulas in the resource and dashboard.
 
 ## Acceptance checks

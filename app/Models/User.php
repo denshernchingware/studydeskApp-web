@@ -73,6 +73,16 @@ class User extends Authenticatable implements FilamentUser
     }
 
     /**
+     * Get the attendance records owned by the user.
+     *
+     * @return HasMany<AttendanceRecord, $this>
+     */
+    public function attendanceRecords(): HasMany
+    {
+        return $this->hasMany(AttendanceRecord::class);
+    }
+
+    /**
      * Get the attributes that should be cast.
      *
      * @return array<string, string>

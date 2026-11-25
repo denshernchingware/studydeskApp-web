@@ -2,7 +2,7 @@
 
 ## Implementation status
 
-The owner-scoped, semester-filtered Filament resource, weekday/time/subject filters, Monday-to-Sunday grouped schedule, weekly totals, and transactional overlap validation are implemented. New slots must use a subject in the active semester; editing preserves the original effective date and semester. Deleting a subject cascades to its slots. Slot deletion is confirmed, and attendance-history cleanup will be enforced when module 04 adds attendance records.
+The owner-scoped, semester-filtered Filament resource, weekday/time/subject filters, Monday-to-Sunday grouped schedule, weekly totals, and transactional overlap validation are implemented. New slots must use a subject in the active semester; editing preserves the original effective date and semester. Deleting a subject cascades to its slots. Slot deletion is confirmed, and attendance-history cleanup cascades through the slot foreign key.
 
 ## Goal
 
@@ -29,7 +29,7 @@ Rebuild recurring weekly study slots and the seven-day schedule view.
 6. [x] Preserve `effective_from` when editing. A change to weekday or time affects future expected sessions only; it must not rewrite historical attendance. Expected-session date clamping follows with module 04.
 7. [x] Provide a grouped Monday-to-Sunday schedule and a clear add-slot entry point. Guide the user to create a semester or subject when the active semester has no available subjects.
 8. [x] Calculate weekly session count, distinct subjects scheduled, and total hours from the owner's slots in the selected semester.
-9. [x] Confirm before deleting a slot and explain that its attendance history is removed, matching the source behavior. Enforce attendance cascade when module 04 creates those records.
+9. [x] Confirm before deleting a slot and explain that its attendance history is removed, matching the source behavior. Attendance cleanup is enforced by the cascading foreign key from module 04.
 
 ## Acceptance checks
 

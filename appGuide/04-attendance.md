@@ -1,5 +1,9 @@
 # Module 4: Attendance
 
+## Implementation status
+
+Implemented as an owner-scoped Filament Attendance page with date and semester filters, recurring-session eligibility, atomic Present/Absent toggles, subject target lockout, semester summaries, and recent history. Attendance records have a unique owner/slot/date constraint and cascade when their timetable slot is removed.
+
 ## Goal
 
 Replace localStorage attendance marks with authenticated, persistent records tied to recurring timetable slots.
@@ -16,16 +20,16 @@ Replace localStorage attendance marks with authenticated, persistent records tie
 
 ## Implementation steps
 
-1. Create an attendance-record migration and model with owner, timetable slot, session date, status (`present` or `absent`), and timestamps.
-2. Enforce at most one record per owner/slot/date. Add indexes for date history and slot lookups.
-3. Build a date-aware Filament page for the selected day's sessions. Use the shared timezone policy from the foundation module.
-4. Derive expected sessions from recurring slots, their weekday, `effective_from`, the learner's study start date, and the selected semester's start/end dates. Do not generate absence records for unmarked sessions.
-5. Add Present/Absent actions that can toggle the same status off. Validate the selected date is not in the future, is inside the selected semester, and that the slot belongs to the current owner and selected day.
-6. Before writing a mark, recalculate the subject's marked count and enforce its target. Make the check and write atomic so concurrent requests cannot exceed the target.
-7. When the target is reached, render attendance as view-only while still allowing review of the saved status.
-8. Add a subject summary table with expected occurrences through today within the selected semester, present, absent, rate, and target progress.
-9. Add recent history sorted by session date and start time, newest first.
-10. Keep delete behavior consistent with the timetable module: removing a slot removes its attendance records. Confirm this loss before deletion.
+1. [x] Create an attendance-record migration and model with owner, timetable slot, session date, status (`present` or `absent`), and timestamps.
+2. [x] Enforce at most one record per owner/slot/date. Add indexes for date history and slot lookups, with a composite owner/slot foreign key.
+3. [x] Build a date-aware Filament page for the selected day's sessions. Use the shared `APP_TIMEZONE` policy from the foundation module.
+4. [x] Derive expected sessions from recurring slots, their weekday, `effective_from`, the learner's study start date, and the selected semester's start/end dates. Do not generate absence records for unmarked sessions.
+5. [x] Add Present/Absent actions that can toggle the same status off. Validate the selected date is not in the future, is inside the selected semester, and that the slot belongs to the current owner and selected day.
+6. [x] Before writing a mark, recalculate the subject's marked count and enforce its target inside a transaction serialized on the owner and subject records.
+7. [x] When the target is reached, render attendance as view-only while still allowing review of the saved status.
+8. [x] Add a subject summary table with expected occurrences through today within the selected semester, present, absent, rate, and target progress.
+9. [x] Add recent history sorted by session date and start time, newest first.
+10. [x] Keep delete behavior consistent with the timetable module: removing a slot removes its attendance records through a cascading foreign key. Confirm this loss before deletion.
 
 ## Acceptance checks
 

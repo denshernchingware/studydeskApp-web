@@ -1,0 +1,139 @@
+<?php
+
+namespace App\Actions;
+
+use App\Enums\AttendanceStatus;
+use App\Models\AttendanceRecord;
+use App\Models\Semester;
+use App\Models\Subject;
+use App\Models\TimetableSlot;
+use App\Models\User;
+use Carbon\CarbonImmutable;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\ValidationException;
+
+class SaveAttendanceRecord
+{
+    /**
+     * Toggle a status for a valid scheduled session.
+     */
+    public function toggle(User $user, int $slotId, int $semesterId, string $sessionDate, AttendanceStatus $status): ?AttendanceRecord
+    {
+        Validator::make(
+            ['session_date' => $sessionDate],
+            ['session_date' => ['required', 'date_format:Y-m-d']],
+        )->validate();
+
+        $date = CarbonImmutable::parse($sessionDate, config('app.timezone'))->startOfDay();
+
+        return DB::transaction(function () use ($user, $slotId, $semesterId, $sessionDate, $date, $status): ?AttendanceRecord {
+            $owner = User::query()
+                ->whereKey($user->getKey())
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            $semester = Semester::query()
+                ->where('user_id', $owner->getKey())
+                ->whereKey($semesterId)
+                ->lockForUpdate()
+                ->first();
+
+            if (! $semester instanceof Semester) {
+                throw ValidationException::withMessages([
+                    'selectedSemesterId' => 'Choose one of your semesters.',
+                ]);
+            }
+
+            $slot = TimetableSlot::query()
+                ->where('user_id', $owner->getKey())
+                ->whereKey($slotId)
+                ->lockForUpdate()
+                ->first();
+
+            if (! $slot instanceof TimetableSlot) {
+                throw (new ModelNotFoundException)->setModel(TimetableSlot::class, [$slotId]);
+            }
+
+            $subject = Subject::query()
+                ->where('user_id', $owner->getKey())
+                ->whereKey($slot->subject_id)
+                ->lockForUpdate()
+                ->first();
+
+            if (! $subject instanceof Subject || (int) $subject->semester_id !== (int) $semester->getKey()) {
+                throw ValidationException::withMessages([
+                    'selectedSemesterId' => 'This slot does not belong to the selected semester.',
+                ]);
+            }
+
+            if ($date->lt($semester->starts_on->startOfDay()) || $date->gt($semester->ends_on->startOfDay())) {
+                throw ValidationException::withMessages([
+                    'selectedDate' => 'Choose a date inside the selected semester.',
+                ]);
+            }
+
+            if ($date->gt(CarbonImmutable::today(config('app.timezone')))) {
+                throw ValidationException::withMessages([
+                    'selectedDate' => 'Attendance cannot be marked for a future date.',
+                ]);
+            }
+
+            if ($date->lt($owner->study_start_date->startOfDay())) {
+                throw ValidationException::withMessages([
+                    'selectedDate' => 'Attendance cannot be marked before your study start date.',
+                ]);
+            }
+
+            if ($date->lt($slot->effective_from->startOfDay()) || (int) $slot->weekday !== $date->dayOfWeek) {
+                throw ValidationException::withMessages([
+                    'selectedDate' => 'This slot is not scheduled on the selected date.',
+                ]);
+            }
+
+            $markedCount = AttendanceRecord::query()
+                ->where('user_id', $owner->getKey())
+                ->whereBetween('session_date', [
+                    $semester->starts_on->toDateString(),
+                    $semester->ends_on->toDateString(),
+                ])
+                ->whereHas('timetableSlot', fn ($query) => $query
+                    ->where('user_id', $owner->getKey())
+                    ->where('subject_id', $subject->getKey()))
+                ->count();
+
+            if ($markedCount >= $subject->required_sessions) {
+                throw ValidationException::withMessages([
+                    'selectedDate' => 'This subject has reached its required number of marked sessions.',
+                ]);
+            }
+
+            $record = AttendanceRecord::query()
+                ->where('user_id', $owner->getKey())
+                ->where('timetable_slot_id', $slot->getKey())
+                ->whereDate('session_date', $sessionDate)
+                ->lockForUpdate()
+                ->first();
+
+            if ($record instanceof AttendanceRecord) {
+                if ($record->status === $status) {
+                    $record->delete();
+
+                    return null;
+                }
+
+                $record->update(['status' => $status]);
+
+                return $record->refresh();
+            }
+
+            return AttendanceRecord::query()->create([
+                'user_id' => $owner->getKey(),
+                'timetable_slot_id' => $slot->getKey(),
+                'session_date' => $sessionDate,
+                'status' => $status,
+            ]);
+        }, attempts: 3);
+    }
+}
