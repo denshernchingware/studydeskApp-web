@@ -63,6 +63,16 @@ class User extends Authenticatable implements FilamentUser
     }
 
     /**
+     * Get the timetable slots owned by the user.
+     *
+     * @return HasMany<TimetableSlot, $this>
+     */
+    public function timetableSlots(): HasMany
+    {
+        return $this->hasMany(TimetableSlot::class);
+    }
+
+    /**
      * Get the attributes that should be cast.
      *
      * @return array<string, string>
