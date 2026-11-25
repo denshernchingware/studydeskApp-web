@@ -4,15 +4,17 @@
 
 Prepare the existing Filament panel to host the personal StudyDesk workflow. The destination already has Filament v5 installed, an `/admin` panel, and a local admin account; this module should refine the shell and establish data ownership before domain resources are added.
 
+> Status: implemented. The panel uses a configured admin-email allowlist, stores a study start date on each user, and uses Filament's light/dark appearance switcher.
+
 ## Implementation steps
 
 1. Confirm installed Laravel, Filament, Livewire, PHP, and database versions before using version-specific APIs.
 2. Review the current panel provider, user model, auth configuration, migrations, and existing UI conventions. Preserve the existing `/admin` panel instead of creating a second panel.
-3. Decide whether the first release is single-learner or supports multiple learners. Default to owner-scoped records because the source calls the workspace private; the configured admin account is the first owner.
-4. Define the owner access rule for the panel and all records. Add an explicit `FilamentUser` access check if the app will be used outside local development; avoid granting access based only on a development email suffix in production.
-5. Choose where to store a learner's study start date and appearance preference: user columns or a user-preferences model. Record the decision before migrations.
-6. Keep Filament's navigation labels and brand aligned with StudyDesk. Use a purple primary color similar to the source, and organize future resources under clear workspace navigation groups.
-7. Add a shared date/timezone policy. Use the same timezone for today's date, weekly slot occurrences, attendance eligibility, and dashboard periods.
+3. Treat the first release as an owner-scoped private workspace. Future domain records must include an owner and every resource/query must constrain access to that owner.
+4. Allow entry to the `admin` panel only for email addresses in `STUDYDESK_ADMIN_EMAILS`; configure local and deployed environments explicitly. A blank value intentionally denies access. Do not use email-domain checks or open registration as an access rule.
+5. Store `study_start_date` on `users`, backfill existing accounts at migration time, and initialize it for newly created users. Use Filament's built-in browser-side appearance switcher rather than adding a second preference store.
+6. Set the panel name from `APP_NAME`, use the source's violet primary color, and default to light mode while keeping the light/dark switcher available.
+7. Use configurable `APP_TIMEZONE`, defaulting to `Asia/Kolkata`, consistently for study-start dates and all later date-boundary calculations.
 8. Create a small representative test matrix for panel access and owner isolation before adding domain modules.
 
 ## Acceptance checks

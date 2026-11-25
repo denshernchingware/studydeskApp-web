@@ -41,7 +41,7 @@ Keep ownership explicit because the source describes a private workspace and the
 1. `subjects`: owner (`user_id`), name, code, description, color, required session count, timestamps.
 2. `timetable_slots`: owner (`user_id`), subject, weekday, start time, end time, label, effective-from date, timestamps.
 3. `attendance_records`: owner (`user_id`), timetable slot, session date, status, timestamps; enforce one record per slot/date.
-4. Store the learner's study start date and display preference on the user or in a small user-preferences table. Choose one place during the foundation step and use it consistently.
+4. Store `study_start_date` on the user. Use Filament's built-in appearance switcher; its light/dark selection remains browser-side like the source preference.
 
 Use foreign keys and indexes that support owner-scoped listing, date/slot attendance lookup, and overlap checks. Treat scheduled occurrences as derived from recurring slots; persist only marks unless a later requirement needs a generated session calendar.
 
@@ -58,8 +58,8 @@ Each module guide includes implementation steps and acceptance checks. Complete 
 
 ## Cross-module decisions to keep consistent
 
-- All application data is scoped to the authenticated owner. Never expose one learner's subjects, timetable, attendance, or widgets to another account.
-- Store session dates as date values and recurring clock times as local wall-clock times. Decide and document the application timezone before implementing date boundaries.
+- Scope all domain records and every resource/query to the authenticated owner. Only emails listed in `STUDYDESK_ADMIN_EMAILS` can enter the `admin` panel; the allowlist is configuration, not a development-domain check.
+- Store session dates as date values and recurring clock times as local wall-clock times. `APP_TIMEZONE` controls date boundaries and defaults to `Asia/Kolkata`.
 - Make attendance completion checks and writes atomic so two requests cannot exceed a subject's target.
 - Define deletion behavior before enabling destructive actions. To match the source, deleting a slot removes its marks, and deleting a subject removes its slots and marks; show a confirmation that explains the loss.
 - Historical expected-session counts depend on slot effective dates. Editing a slot's day or time must not silently rewrite past attendance.
