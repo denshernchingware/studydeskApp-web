@@ -1,5 +1,11 @@
 # Module 2: Subject management
 
+## Implementation status
+
+The subject migration, owner relationship, owner-scoped Filament resource, searchable list, create/edit validation, and confirmed single-record deletion are implemented. Subject creation assigns both the signed-in owner and their active semester on the server. The list defaults to the active-semester filter and offers prior semesters and legacy unassigned records as filters.
+
+Weekly-slot counts, attendance rates, completion state, page summaries, and timetable/attendance cascade relations are deferred until modules 03 and 04 add those records and shared statistics. The delete confirmation is already in place; the later modules must add cascading foreign keys so the stated linked-record deletion is enforced.
+
 ## Goal
 
 Rebuild the source's subject list and add/edit/delete flows as an owner-scoped Filament resource.
@@ -15,18 +21,20 @@ Rebuild the source's subject list and add/edit/delete flows as an owner-scoped F
 
 ## Implementation steps
 
-1. Create the subject migration and model with owner and timestamps. Add indexes for owner-scoped searches and constraints appropriate to the codebase.
-2. Define the subject-to-user and subject-to-slot relationships. Keep delete behavior explicit; do not rely on accidental database defaults.
-3. Generate a Filament v5 Subject resource with a schema for the source fields and a searchable table for name/code.
-4. Validate name length, code length, color choices, and positive integer target on both create and edit.
-5. Scope every query and mutation to the current owner. Ensure a crafted record URL cannot open or update another user's subject.
-6. Add table columns or infolist details for code, target, marked count, attendance rate, and completion state. Keep computed values out of duplicated stored columns.
-7. Add an explicit delete confirmation that says linked timetable slots and attendance marks will also be removed, matching the source's destructive behavior.
-8. Add the subjects summary as a page header or dashboard widget only after the shared statistics logic exists; avoid duplicating formulas in the resource and dashboard.
+1. [x] Create the subject migration and model with owner, semester, and timestamps. Add indexes and a composite constraint preventing a subject from referencing another owner's semester.
+2. [ ] Define the subject-to-slot relationship and explicit cascade behavior with module 03. (The subject-to-user relationship is implemented.)
+3. [x] Generate a Filament v5 Subject resource with a schema for the source fields and a searchable table for name/code.
+4. [x] Validate name length, code length, color choices, and positive integer target on both create and edit.
+5. [x] Scope every query and mutation to the current owner and default subject listing to the active semester. Ensure a crafted record URL cannot open or update another user's subject.
+6. [ ] Add table columns or infolist details for code, target, marked count, attendance rate, and completion state. Keep computed values out of duplicated stored columns. (Code and target are implemented; attendance-derived values depend on module 04.)
+7. [x] Add an explicit delete confirmation that says linked timetable slots and attendance marks will also be removed, matching the source's destructive behavior. Enforce cascades when modules 03 and 04 create those records.
+8. [ ] Add the subjects summary as a page header or dashboard widget only after the shared statistics logic exists; avoid duplicating formulas in the resource and dashboard.
 
 ## Acceptance checks
 
 - A user can create, search, edit, and delete only their own subjects.
+- New subjects are assigned to the user's active semester, and the list defaults to that semester while allowing historical semester filters.
+- A subject cannot reference another user's semester; records created before semester support remain available under the legacy filter.
 - Invalid or missing required-session targets are rejected.
 - Completion is derived from marked attendance and does not treat unmarked sessions as marks.
 - Deleting a subject follows the documented cascade behavior and does not leave orphaned slots or marks.

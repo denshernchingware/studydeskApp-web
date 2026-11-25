@@ -9,6 +9,8 @@ use Filament\Panel;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
@@ -30,6 +32,34 @@ class User extends Authenticatable implements FilamentUser
     {
         return $panel->getId() === 'admin'
             && in_array(strtolower($this->email), config('studydesk.admin_emails', []), true);
+    }
+
+    /**
+     * Get the subjects owned by the user.
+     *
+     * @return HasMany<Subject, $this>
+     */
+    public function subjects(): HasMany
+    {
+        return $this->hasMany(Subject::class);
+    }
+
+    /**
+     * Get the user's currently selected semester.
+     */
+    public function activeSemester(): BelongsTo
+    {
+        return $this->belongsTo(Semester::class, 'active_semester_id');
+    }
+
+    /**
+     * Get all semesters owned by the user.
+     *
+     * @return HasMany<Semester, $this>
+     */
+    public function semesters(): HasMany
+    {
+        return $this->hasMany(Semester::class);
     }
 
     /**
