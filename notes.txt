@@ -1,0 +1,3 @@
+php artisan telegram:webhook set --url=https://likeable-angelena-meddlingly.ngrok-free.dev/telegram/webhook
+php artisan schedule:work
+php artisan queue:work

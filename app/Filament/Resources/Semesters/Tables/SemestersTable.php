@@ -2,9 +2,11 @@
 
 namespace App\Filament\Resources\Semesters\Tables;
 
+use App\Actions\DeleteSemester;
 use App\Models\Semester;
 use App\Models\User;
 use Filament\Actions\Action;
+use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
 use Filament\Facades\Filament;
 use Filament\Notifications\Notification;
@@ -41,6 +43,16 @@ class SemestersTable
             ->filters([])
             ->recordActions([
                 EditAction::make(),
+                DeleteAction::make()
+                    ->label('Delete')
+                    ->modalDescription('Deleting this semester permanently deletes its subjects, timetable slots, and attendance history. If this is your active semester, you will need to select another one.')
+                    ->using(function (Semester $record, DeleteSemester $deleteSemester): bool {
+                        $user = Filament::auth()->user();
+
+                        abort_unless($user instanceof User, 403);
+
+                        return $deleteSemester->handle($user, $record);
+                    }),
                 Action::make('makeActive')
                     ->label('Make active')
                     ->visible(function (Semester $record): bool {

@@ -44,7 +44,7 @@ class SemesterPolicy
      */
     public function delete(User $user, Semester $semester): bool
     {
-        return false;
+        return $semester->user()->is($user);
     }
 
     /**

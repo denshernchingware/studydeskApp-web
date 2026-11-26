@@ -163,22 +163,42 @@ class AttendanceStatistics
      */
     public function weeklyConsistency(User $user, Semester $semester): array
     {
+        return $this->consistencyForPeriod($user, $semester, 'weekly');
+    }
+
+    /**
+     * Return daily attendance totals for the current calendar month.
+     *
+     * @return array{dates: array<int, string>, labels: array<int, string>, present: array<int, int>, absent: array<int, int>}
+     */
+    public function monthlyConsistency(User $user, Semester $semester): array
+    {
+        return $this->consistencyForPeriod($user, $semester, 'monthly');
+    }
+
+    /**
+     * @return array{dates: array<int, string>, labels: array<int, string>, present: array<int, int>, absent: array<int, int>}
+     */
+    private function consistencyForPeriod(User $user, Semester $semester, string $period): array
+    {
         $today = CarbonImmutable::today(config('app.timezone'));
         $semesterStart = CarbonImmutable::parse($semester->starts_on->toDateString(), config('app.timezone'))->startOfDay();
         $semesterEnd = CarbonImmutable::parse($semester->ends_on->toDateString(), config('app.timezone'))->startOfDay();
         $studyStart = CarbonImmutable::parse($user->study_start_date->toDateString(), config('app.timezone'))->startOfDay();
         $endDate = $today->min($semesterEnd);
-        $windowStart = $endDate->subDays(6);
+        $windowStart = $period === 'monthly' ? $endDate->startOfMonth() : $endDate->subDays(6);
         $queryStart = $windowStart->max($semesterStart)->max($studyStart);
         $dates = [];
         $labels = [];
         $present = [];
         $absent = [];
+        $dayCount = (int) $windowStart->diffInDays($endDate) + 1;
+        $labelFormat = $period === 'monthly' ? 'M j' : 'D j';
 
-        for ($offset = 0; $offset < 7; $offset++) {
+        for ($offset = 0; $offset < $dayCount; $offset++) {
             $date = $windowStart->addDays($offset);
             $dates[] = $date->toDateString();
-            $labels[] = $date->format('D j');
+            $labels[] = $date->format($labelFormat);
             $present[] = 0;
             $absent[] = 0;
         }

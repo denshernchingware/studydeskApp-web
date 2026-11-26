@@ -41,14 +41,5 @@
                 </div>
             @endif
         </x-filament::section>
-
-        <x-filament::section>
-            <x-slot name="heading">Webhook setup</x-slot>
-            <p class="text-sm text-gray-600 dark:text-gray-300">
-                Incoming bot updates are accepted at
-                <code class="rounded bg-gray-100 px-1 py-0.5 dark:bg-white/10">{{ route('telegram.webhook') }}</code>.
-                Telegram requires this endpoint to use a publicly reachable HTTPS URL.
-            </p>
-        </x-filament::section>
     </div>
 </x-filament-panels::page>

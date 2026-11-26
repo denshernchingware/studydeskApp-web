@@ -12,7 +12,9 @@ class DashboardWeeklyConsistency extends ChartWidget
 {
     use InteractsWithDashboardData;
 
-    protected ?string $heading = 'Weekly consistency';
+    public ?string $filter = 'weekly';
+
+    protected ?string $heading = 'Attendance consistency';
 
     protected ?string $pollingInterval = '15s';
 
@@ -31,24 +33,38 @@ class DashboardWeeklyConsistency extends ChartWidget
             return [];
         }
 
-        $weeklyData = app(AttendanceStatistics::class)->weeklyConsistency($user, $semester);
+        $statistics = app(AttendanceStatistics::class);
+        $periodData = $this->filter === 'monthly'
+            ? $statistics->monthlyConsistency($user, $semester)
+            : $statistics->weeklyConsistency($user, $semester);
 
         return [
-            'labels' => $weeklyData['labels'],
+            'labels' => $periodData['labels'],
             'datasets' => [
                 [
                     'label' => 'Present',
-                    'data' => $weeklyData['present'],
+                    'data' => $periodData['present'],
                     'backgroundColor' => 'rgba(34, 197, 94, 0.75)',
                     'borderRadius' => 4,
                 ],
                 [
                     'label' => 'Absent',
-                    'data' => $weeklyData['absent'],
+                    'data' => $periodData['absent'],
                     'backgroundColor' => 'rgba(239, 68, 68, 0.75)',
                     'borderRadius' => 4,
                 ],
             ],
+        ];
+    }
+
+    /**
+     * @return array<string, string>|null
+     */
+    protected function getFilters(): ?array
+    {
+        return [
+            'weekly' => 'Weekly',
+            'monthly' => 'Monthly',
         ];
     }
 
