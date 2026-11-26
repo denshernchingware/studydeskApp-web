@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
+use LogicException;
 
 class SaveAttendanceRecord
 {
@@ -21,6 +22,31 @@ class SaveAttendanceRecord
      */
     public function toggle(User $user, int $slotId, int $semesterId, string $sessionDate, AttendanceStatus $status): ?AttendanceRecord
     {
+        return $this->save($user, $slotId, $semesterId, $sessionDate, $status, toggle: true);
+    }
+
+    /**
+     * Set a status idempotently for a valid scheduled session.
+     */
+    public function set(User $user, int $slotId, int $semesterId, string $sessionDate, AttendanceStatus $status): AttendanceRecord
+    {
+        $record = $this->save($user, $slotId, $semesterId, $sessionDate, $status, toggle: false);
+
+        if (! $record instanceof AttendanceRecord) {
+            throw new LogicException('Setting attendance must return a saved record.');
+        }
+
+        return $record;
+    }
+
+    private function save(
+        User $user,
+        int $slotId,
+        int $semesterId,
+        string $sessionDate,
+        AttendanceStatus $status,
+        bool $toggle,
+    ): ?AttendanceRecord {
         Validator::make(
             ['session_date' => $sessionDate],
             ['session_date' => ['required', 'date_format:Y-m-d']],
@@ -28,7 +54,7 @@ class SaveAttendanceRecord
 
         $date = CarbonImmutable::parse($sessionDate, config('app.timezone'))->startOfDay();
 
-        return DB::transaction(function () use ($user, $slotId, $semesterId, $sessionDate, $date, $status): ?AttendanceRecord {
+        return DB::transaction(function () use ($user, $slotId, $semesterId, $sessionDate, $date, $status, $toggle): ?AttendanceRecord {
             $owner = User::query()
                 ->whereKey($user->getKey())
                 ->lockForUpdate()
@@ -92,6 +118,29 @@ class SaveAttendanceRecord
                 ]);
             }
 
+            $now = CarbonImmutable::now(config('app.timezone'));
+            $scheduledStart = CarbonImmutable::parse(
+                $date->toDateString().' '.$slot->start_time,
+                config('app.timezone'),
+            );
+
+            if ($date->isSameDay($now) && $now->lt($scheduledStart)) {
+                throw ValidationException::withMessages([
+                    'selectedDate' => 'Attendance opens at the scheduled start time.',
+                ]);
+            }
+
+            $record = AttendanceRecord::query()
+                ->where('user_id', $owner->getKey())
+                ->where('timetable_slot_id', $slot->getKey())
+                ->whereDate('session_date', $sessionDate)
+                ->lockForUpdate()
+                ->first();
+
+            if (! $toggle && $record instanceof AttendanceRecord && $record->status === $status) {
+                return $record;
+            }
+
             $markedCount = AttendanceRecord::query()
                 ->where('user_id', $owner->getKey())
                 ->whereBetween('session_date', [
@@ -109,15 +158,8 @@ class SaveAttendanceRecord
                 ]);
             }
 
-            $record = AttendanceRecord::query()
-                ->where('user_id', $owner->getKey())
-                ->where('timetable_slot_id', $slot->getKey())
-                ->whereDate('session_date', $sessionDate)
-                ->lockForUpdate()
-                ->first();
-
             if ($record instanceof AttendanceRecord) {
-                if ($record->status === $status) {
+                if ($toggle && $record->status === $status) {
                     $record->delete();
 
                     return null;

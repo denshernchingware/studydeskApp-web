@@ -14,6 +14,7 @@ Replace localStorage attendance marks with authenticated, persistent records tie
 - The selected date must be inside the selected semester's inclusive date range. The page defaults to the active semester and can filter to a previous semester.
 - Users mark a session Present or Absent. Clicking the selected state clears it; unmarked sessions remain unmarked.
 - Future dates cannot be marked.
+- A session scheduled for today cannot be marked before its local scheduled start time.
 - Attendance is view-only for a subject after its marked count reaches the required-session target.
 - The source reports expected, present, absent, and attendance rate by subject, plus the ten most recent marked sessions.
 - Rate is `present / (present + absent)`, or unset when no marks exist. Expected-but-unmarked sessions do not count as absent.
@@ -24,7 +25,7 @@ Replace localStorage attendance marks with authenticated, persistent records tie
 2. [x] Enforce at most one record per owner/slot/date. Add indexes for date history and slot lookups, with a composite owner/slot foreign key.
 3. [x] Build a date-aware Filament page for the selected day's sessions. Use the shared `APP_TIMEZONE` policy from the foundation module.
 4. [x] Derive expected sessions from recurring slots, their weekday, `effective_from`, the learner's study start date, and the selected semester's start/end dates. Do not generate absence records for unmarked sessions.
-5. [x] Add Present/Absent actions that can toggle the same status off. Validate the selected date is not in the future, is inside the selected semester, and that the slot belongs to the current owner and selected day.
+5. [x] Add Present/Absent actions that can toggle the same status off. Validate the selected date is not in the future, is inside the selected semester, and that the slot belongs to the current owner and selected day. Today's session cannot be marked before its scheduled start time.
 6. [x] Before writing a mark, recalculate the subject's marked count and enforce its target inside a transaction serialized on the owner and subject records.
 7. [x] When the target is reached, render attendance as view-only while still allowing review of the saved status.
 8. [x] Add a subject summary table with expected occurrences through today within the selected semester, present, absent, rate, and target progress.
@@ -35,7 +36,7 @@ Replace localStorage attendance marks with authenticated, persistent records tie
 
 - Only scheduled sessions appear for the selected date.
 - Attendance dates outside the selected semester range are rejected, and historical filters show only marks linked to that semester's subjects.
-- Future sessions cannot be marked, and unscheduled days do not change expected totals.
+- Future dates and today's not-yet-started sessions cannot be marked, and unscheduled days do not change expected totals.
 - Present/Absent can be set, changed, and cleared while the subject remains below its target.
 - Unmarked expected sessions do not reduce the attendance rate.
 - A completed subject cannot receive further marks or edits to marks.

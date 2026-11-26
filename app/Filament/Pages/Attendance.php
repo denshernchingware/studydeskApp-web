@@ -114,13 +114,26 @@ class Attendance extends Page
 
         $this->validateSelectedDate($semester);
 
-        $record = app(SaveAttendanceRecord::class)->toggle(
-            $user,
-            $slotId,
-            (int) $semester->getKey(),
-            (string) $this->selectedDate,
-            $attendanceStatus,
-        );
+        try {
+            $record = app(SaveAttendanceRecord::class)->toggle(
+                $user,
+                $slotId,
+                (int) $semester->getKey(),
+                (string) $this->selectedDate,
+                $attendanceStatus,
+            );
+        } catch (ValidationException $exception) {
+            $messages = $exception->errors();
+            $firstFieldMessages = reset($messages);
+
+            Notification::make()
+                ->title('Attendance was not saved')
+                ->body(is_array($firstFieldMessages) ? (string) reset($firstFieldMessages) : $exception->getMessage())
+                ->warning()
+                ->send();
+
+            return;
+        }
 
         Notification::make()
             ->title($record instanceof AttendanceRecord ? 'Attendance saved' : 'Attendance cleared')
