@@ -35,10 +35,12 @@ class BuildStudyAdvisorContext
     }
 
     /**
-     * @return array<string, mixed>|string
+     * @return array<string, mixed>
      */
-    private function decode(string $json): array|string
+    private function decode(string $json): array
     {
-        return json_decode($json, true, flags: JSON_THROW_ON_ERROR);
+        $decoded = json_decode($json, true);
+
+        return is_array($decoded) ? $decoded : ['message' => $json];
     }
 }

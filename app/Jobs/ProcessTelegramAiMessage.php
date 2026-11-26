@@ -13,6 +13,7 @@ use App\Models\User;
 use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
 use Laravel\Ai\Contracts\ConversationStore;
@@ -116,7 +117,12 @@ class ProcessTelegramAiMessage implements ShouldBeUnique, ShouldQueue
                     'ai_conversation_semester_id' => $semester->getKey(),
                 ])->save();
             }
-        } catch (Throwable) {
+        } catch (Throwable $exception) {
+            Log::warning('Telegram study-advisor request failed.', [
+                'update_id' => $update->update_id,
+                'user_id' => $user->getKey(),
+                'exception_type' => $exception::class,
+            ]);
             $reply = 'The study advisor is temporarily unavailable. Please try again shortly.';
         }
 

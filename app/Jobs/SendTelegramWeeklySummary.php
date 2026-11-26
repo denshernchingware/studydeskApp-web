@@ -10,6 +10,7 @@ use App\Services\Telegram\TelegramBotClient;
 use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Support\Facades\Log;
 use RuntimeException;
 use Throwable;
 
@@ -83,6 +84,15 @@ class SendTelegramWeeklySummary implements ShouldBeUnique, ShouldQueue
 
     public function failed(?Throwable $exception): void
     {
+        $delivery = TelegramDelivery::query()->select(['id', 'user_id', 'notification_type'])->find($this->telegramDeliveryId);
+
+        Log::warning('Telegram notification delivery failed.', [
+            'delivery_id' => $this->telegramDeliveryId,
+            'user_id' => $delivery?->user_id,
+            'notification_type' => $delivery?->notification_type,
+            'exception_type' => $exception === null ? null : $exception::class,
+        ]);
+
         TelegramDelivery::query()
             ->whereKey($this->telegramDeliveryId)
             ->where('status', '!=', TelegramDeliveryStatus::Sent->value)

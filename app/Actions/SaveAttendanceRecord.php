@@ -141,8 +141,9 @@ class SaveAttendanceRecord
                 return $record;
             }
 
-            $markedCount = AttendanceRecord::query()
+            $presentCount = AttendanceRecord::query()
                 ->where('user_id', $owner->getKey())
+                ->where('status', AttendanceStatus::Present->value)
                 ->whereBetween('session_date', [
                     $semester->starts_on->toDateString(),
                     $semester->ends_on->toDateString(),
@@ -152,9 +153,9 @@ class SaveAttendanceRecord
                     ->where('subject_id', $subject->getKey()))
                 ->count();
 
-            if ($markedCount >= $subject->required_sessions) {
+            if (! $record instanceof AttendanceRecord && $presentCount >= $subject->required_sessions) {
                 throw ValidationException::withMessages([
-                    'selectedDate' => 'This subject has reached its required number of marked sessions.',
+                    'selectedDate' => 'This subject has reached its required number of present sessions.',
                 ]);
             }
 

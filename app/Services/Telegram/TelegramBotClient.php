@@ -14,7 +14,7 @@ class TelegramBotClient
      *
      * @param  array<string, mixed>|null  $replyMarkup
      */
-    public function sendMessage(string $chatId, string $text, ?array $replyMarkup = null): array
+    public function sendMessage(string $chatId, string $text, ?array $replyMarkup = null, ?string $parseMode = null): array
     {
         $payload = [
             'chat_id' => $chatId,
@@ -23,6 +23,10 @@ class TelegramBotClient
 
         if ($replyMarkup !== null) {
             $payload['reply_markup'] = $replyMarkup;
+        }
+
+        if ($parseMode !== null) {
+            $payload['parse_mode'] = $parseMode;
         }
 
         return $this->request('sendMessage', $payload)->json();
@@ -55,6 +59,42 @@ class TelegramBotClient
             'text' => $text,
             'reply_markup' => ['inline_keyboard' => []],
         ]);
+    }
+
+    /**
+     * Read the current Telegram webhook status.
+     *
+     * @return array<string, mixed>
+     */
+    public function getWebhookInfo(): array
+    {
+        return $this->request('getWebhookInfo', [])->json();
+    }
+
+    /**
+     * Register the application webhook with Telegram.
+     *
+     * @return array<string, mixed>
+     */
+    public function setWebhook(string $url, string $secretToken): array
+    {
+        return $this->request('setWebhook', [
+            'url' => $url,
+            'secret_token' => $secretToken,
+            'allowed_updates' => ['message', 'callback_query'],
+        ])->json();
+    }
+
+    /**
+     * Remove the current Telegram webhook.
+     *
+     * @return array<string, mixed>
+     */
+    public function deleteWebhook(bool $dropPendingUpdates = false): array
+    {
+        return $this->request('deleteWebhook', [
+            'drop_pending_updates' => $dropPendingUpdates,
+        ])->json();
     }
 
     /**

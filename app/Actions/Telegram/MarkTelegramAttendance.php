@@ -8,7 +8,6 @@ use App\Enums\TelegramDeliveryStatus;
 use App\Models\TelegramAccount;
 use App\Models\TelegramAttendanceAction;
 use App\Models\TelegramUpdate;
-use Carbon\CarbonImmutable;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
@@ -93,17 +92,8 @@ class MarkTelegramAttendance
         $statusLabel = $status->name;
 
         return [
-            'callback_text' => "Attendance marked {$statusLabel}.",
-            'message_text' => sprintf(
-                'Attendance recorded: %s - %s (%s at %s).',
-                $subject->name,
-                $statusLabel,
-                $delivery->session_date->toDateString(),
-                CarbonImmutable::parse(
-                    $delivery->session_date->toDateString().' '.$slot->start_time,
-                    config('app.timezone'),
-                )->format('g:i A'),
-            ),
+            'callback_text' => "Attendance marked {$statusLabel}. Use these buttons to change it within 36 hours.",
+            'message_text' => null,
         ];
     }
 }

@@ -54,7 +54,7 @@
                         $slot = $session['slot'];
                         $record = $session['record'];
                         $status = $record?->status?->value;
-                        $disabled = $session['completed'] || $this->selectedDate > today(config('app.timezone'))->toDateString();
+                        $disabled = ($session['completed'] && $record === null) || $this->selectedDate > today(config('app.timezone'))->toDateString();
                     @endphp
 
                     <article class="flex flex-col gap-4 rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900 lg:flex-row lg:items-center lg:justify-between">
@@ -65,7 +65,7 @@
                                     <span class="text-sm text-gray-500 dark:text-gray-400">{{ $slot->subject->code }}</span>
                                 @endif
                                 @if ($session['completed'])
-                                    <span class="rounded-full bg-success-50 px-2.5 py-1 text-xs font-medium text-success-700 dark:bg-success-400/10 dark:text-success-300">Target reached · view only</span>
+                                    <span class="rounded-full bg-success-50 px-2.5 py-1 text-xs font-medium text-success-700 dark:bg-success-400/10 dark:text-success-300">Present target reached · existing marks can still be edited</span>
                                 @endif
                             </div>
                             <p class="text-sm text-gray-600 dark:text-gray-300">
@@ -133,7 +133,7 @@
                             @forelse ($this->summaries as $summary)
                                 @php
                                     $subject = $summary['subject'];
-                                    $progress = min(100, (int) round(($summary['marked_sessions'] / $subject->required_sessions) * 100));
+                                    $progress = min(100, (int) round(($summary['present'] / $subject->required_sessions) * 100));
                                 @endphp
                                 <tr>
                                     <th class="whitespace-nowrap px-4 py-3 text-left font-medium text-gray-950 dark:text-white">{{ $subject->name }}</th>
@@ -143,8 +143,8 @@
                                     <td class="px-4 py-3 text-gray-700 dark:text-gray-200">{{ is_null($summary['rate']) ? '—' : number_format($summary['rate'], 1).'%' }}</td>
                                     <td class="min-w-56 px-4 py-3">
                                         <div class="flex items-center justify-between gap-3 text-gray-700 dark:text-gray-200">
-                                            <span>{{ $summary['marked_sessions'] }} / {{ $subject->required_sessions }}</span>
-                                            <span class="text-xs text-gray-500 dark:text-gray-400">{{ $summary['completed'] ? 'Complete' : $summary['remaining_sessions'].' remaining' }}</span>
+                                            <span>{{ $summary['present'] }} / {{ $subject->required_sessions }} present</span>
+                                            <span class="text-xs text-gray-500 dark:text-gray-400">{{ $summary['completed'] ? 'Present target complete' : $summary['remaining_sessions'].' present to target' }}</span>
                                         </div>
                                         <div class="mt-2 h-1.5 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-700">
                                             <div class="h-full rounded-full bg-primary-600 dark:bg-primary-400" style="width: {{ $progress }}%"></div>

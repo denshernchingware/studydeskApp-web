@@ -6,11 +6,23 @@ use App\Enums\AttendanceStatus;
 use App\Models\AttendanceRecord;
 use App\Models\Semester;
 use App\Models\Subject;
+use App\Models\TimetableSlot;
 use App\Models\User;
 use Carbon\CarbonImmutable;
 
 class AttendanceStatistics
 {
+    public function selectedSemester(User $user, mixed $semesterId): ?Semester
+    {
+        $selectedSemesterId = filled($semesterId) ? $semesterId : $user->active_semester_id;
+
+        if (! is_numeric($selectedSemesterId)) {
+            return null;
+        }
+
+        return $user->semesters()->whereKey((int) $selectedSemesterId)->first();
+    }
+
     /**
      * Summarize expected and marked sessions for the selected semester.
      *
@@ -78,11 +90,133 @@ class AttendanceStatistics
                 'present' => $present,
                 'absent' => $absent,
                 'marked_sessions' => $markedSessions,
-                'remaining_sessions' => max(0, $requiredSessions - $markedSessions),
+                'remaining_sessions' => max(0, $requiredSessions - $present),
                 'rate' => $markedSessions === 0 ? null : ($present / $markedSessions) * 100,
-                'completed' => $markedSessions >= $requiredSessions,
+                'completed' => $present >= $requiredSessions,
             ];
         })->all();
+    }
+
+    /**
+     * Summarize semester KPIs from the same subject calculations used by attendance.
+     *
+     * @return array{present: int, absent: int, active_subjects: int, rate: float|null}
+     */
+    public function totalsForSemester(User $user, Semester $semester): array
+    {
+        $summaries = $this->forSemester($user, $semester);
+        $present = array_sum(array_column($summaries, 'present'));
+        $absent = array_sum(array_column($summaries, 'absent'));
+        $marked = $present + $absent;
+
+        return [
+            'present' => $present,
+            'absent' => $absent,
+            'active_subjects' => count($summaries),
+            'rate' => $marked === 0 ? null : ($present / $marked) * 100,
+        ];
+    }
+
+    /**
+     * Return today's scheduled slots and their saved attendance states.
+     *
+     * @return array<int, array{slot: TimetableSlot, record: AttendanceRecord|null}>
+     */
+    public function todaySchedule(User $user, Semester $semester): array
+    {
+        $today = CarbonImmutable::today(config('app.timezone'));
+
+        if (
+            $today->lt(CarbonImmutable::parse($semester->starts_on->toDateString(), config('app.timezone'))) ||
+            $today->gt(CarbonImmutable::parse($semester->ends_on->toDateString(), config('app.timezone'))) ||
+            $today->lt(CarbonImmutable::parse($user->study_start_date->toDateString(), config('app.timezone')))
+        ) {
+            return [];
+        }
+
+        $slots = TimetableSlot::query()
+            ->with([
+                'subject',
+                'attendanceRecords' => fn ($query) => $query
+                    ->where('user_id', $user->getKey())
+                    ->whereDate('session_date', $today->toDateString()),
+            ])
+            ->where('user_id', $user->getKey())
+            ->where('weekday', $today->dayOfWeek)
+            ->whereDate('effective_from', '<=', $today->toDateString())
+            ->whereHas('subject', fn ($query) => $query
+                ->where('user_id', $user->getKey())
+                ->where('semester_id', $semester->getKey()))
+            ->orderBy('start_time')
+            ->get();
+
+        return $slots->map(fn (TimetableSlot $slot): array => [
+            'slot' => $slot,
+            'record' => $slot->attendanceRecords->first(),
+        ])->all();
+    }
+
+    /**
+     * Return seven calendar-day attendance totals, bounded to the selected semester.
+     *
+     * @return array{dates: array<int, string>, labels: array<int, string>, present: array<int, int>, absent: array<int, int>}
+     */
+    public function weeklyConsistency(User $user, Semester $semester): array
+    {
+        $today = CarbonImmutable::today(config('app.timezone'));
+        $semesterStart = CarbonImmutable::parse($semester->starts_on->toDateString(), config('app.timezone'))->startOfDay();
+        $semesterEnd = CarbonImmutable::parse($semester->ends_on->toDateString(), config('app.timezone'))->startOfDay();
+        $studyStart = CarbonImmutable::parse($user->study_start_date->toDateString(), config('app.timezone'))->startOfDay();
+        $endDate = $today->min($semesterEnd);
+        $windowStart = $endDate->subDays(6);
+        $queryStart = $windowStart->max($semesterStart)->max($studyStart);
+        $dates = [];
+        $labels = [];
+        $present = [];
+        $absent = [];
+
+        for ($offset = 0; $offset < 7; $offset++) {
+            $date = $windowStart->addDays($offset);
+            $dates[] = $date->toDateString();
+            $labels[] = $date->format('D j');
+            $present[] = 0;
+            $absent[] = 0;
+        }
+
+        if ($queryStart->gt($endDate)) {
+            return compact('dates', 'labels', 'present', 'absent');
+        }
+
+        $counts = AttendanceRecord::query()
+            ->join('timetable_slots', 'attendance_records.timetable_slot_id', '=', 'timetable_slots.id')
+            ->where('attendance_records.user_id', $user->getKey())
+            ->where('timetable_slots.user_id', $user->getKey())
+            ->whereBetween('attendance_records.session_date', [$queryStart->toDateString(), $endDate->toDateString()])
+            ->whereHas('timetableSlot.subject', fn ($query) => $query
+                ->where('user_id', $user->getKey())
+                ->where('semester_id', $semester->getKey()))
+            ->select('attendance_records.session_date', 'attendance_records.status')
+            ->selectRaw('COUNT(*) AS marked_count')
+            ->groupBy('attendance_records.session_date', 'attendance_records.status')
+            ->get();
+
+        foreach ($counts as $count) {
+            $dayIndex = array_search($count->session_date->toDateString(), $dates, true);
+
+            if ($dayIndex === false) {
+                continue;
+            }
+
+            $status = $count->status instanceof AttendanceStatus ? $count->status->value : (string) $count->status;
+
+            if ($status === AttendanceStatus::Present->value) {
+                $present[$dayIndex] = (int) $count->marked_count;
+            } elseif ($status === AttendanceStatus::Absent->value) {
+                $absent[$dayIndex] = (int) $count->marked_count;
+            }
+        }
+
+        return compact('dates', 'labels', 'present', 'absent');
     }
 
     private function countWeekdayOccurrences(CarbonImmutable $startDate, CarbonImmutable $endDate, int $weekday): int

@@ -79,8 +79,8 @@ class SendTelegramWeeklySummary extends Command
 
         $weekStart = CarbonImmutable::parse($weekStartText, $timezone)->startOfDay();
 
-        if ($weekStart->dayOfWeek !== CarbonImmutable::MONDAY || $weekStart->addDays(6)->gte($currentWeekStart)) {
-            $this->error('The week start must be a Monday for a completed week before the current week.');
+        if ($weekStart->dayOfWeek !== CarbonImmutable::MONDAY || $weekStart->gt($currentWeekStart)) {
+            $this->error('The week start must be a Monday no later than the current week.');
 
             return self::FAILURE;
         }

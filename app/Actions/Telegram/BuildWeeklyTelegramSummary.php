@@ -29,6 +29,8 @@ class BuildWeeklyTelegramSummary
         $today = CarbonImmutable::today($timezone);
         $rangeStart = $weekStart->max($semesterStart)->max($studyStart);
         $rangeEnd = $weekEnd->min($semesterEnd)->min($today);
+        $isWeekInProgress = $weekEnd->gt($today);
+        $displayEnd = $isWeekInProgress ? $rangeEnd : $weekEnd;
 
         $subjects = $user->subjects()
             ->where('semester_id', $semester->getKey())
@@ -96,7 +98,7 @@ class BuildWeeklyTelegramSummary
         $marked = $present + $absent;
         $unmarked = max(0, $expected - $marked);
         $rate = $marked === 0 ? null : ($present / $marked) * 100;
-        $message = $this->formatMessage($semester, $weekStart, $weekEnd, $expected, $marked, $present, $absent, $unmarked, $rate, $subjectSummaries);
+        $message = $this->formatMessage($semester, $weekStart, $displayEnd, $isWeekInProgress, $expected, $marked, $present, $absent, $unmarked, $rate, $subjectSummaries);
 
         return [
             'message' => $message,
@@ -120,7 +122,8 @@ class BuildWeeklyTelegramSummary
     private function formatMessage(
         Semester $semester,
         CarbonImmutable $weekStart,
-        CarbonImmutable $weekEnd,
+        CarbonImmutable $displayEnd,
+        bool $isWeekInProgress,
         int $expected,
         int $marked,
         int $present,
@@ -131,18 +134,20 @@ class BuildWeeklyTelegramSummary
     ): string {
         if ($expected === 0) {
             return sprintf(
-                'No expected study sessions for %s during %s - %s.',
+                'No expected study sessions for %s during %s - %s%s.',
                 $semester->name,
                 $weekStart->format('M j, Y'),
-                $weekEnd->format('M j, Y'),
+                $displayEnd->format('M j, Y'),
+                $isWeekInProgress ? ' (week to date)' : '',
             );
         }
 
         $message = sprintf(
-            "Weekly study summary\n%s\n%s - %s\n\nExpected: %d | Marked: %d\nPresent: %d | Absent: %d\nUnmarked: %d | Attendance: %s",
+            "Weekly study summary%s\n%s\n%s - %s\n\nExpected: %d | Marked: %d\nPresent: %d | Absent: %d\nUnmarked: %d | Attendance: %s",
+            $isWeekInProgress ? ' (week to date)' : '',
             $semester->name,
             $weekStart->format('M j, Y'),
-            $weekEnd->format('M j, Y'),
+            $displayEnd->format('M j, Y'),
             $expected,
             $marked,
             $present,
