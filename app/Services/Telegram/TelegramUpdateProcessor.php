@@ -4,6 +4,7 @@ namespace App\Services\Telegram;
 
 use App\Actions\Telegram\CreateTelegramLink;
 use App\Actions\Telegram\MarkTelegramAttendance;
+use App\Jobs\ProcessTelegramAiMessage;
 use App\Models\TelegramAccount;
 use App\Models\TelegramUpdate;
 
@@ -76,6 +77,37 @@ class TelegramUpdateProcessor
                 $update->chat_id,
                 'Open Telegram settings in StudyDesk and generate a new link to connect your account.',
             );
+        }
+
+        if ($update->update_type === 'oversized_message' && filled($update->chat_id)) {
+            $this->telegramBotClient->sendMessage(
+                $update->chat_id,
+                'Please keep study-advisor messages under 2,000 characters.',
+            );
+        }
+
+        if ($update->update_type === 'unsupported_message' && filled($update->chat_id)) {
+            $this->telegramBotClient->sendMessage(
+                $update->chat_id,
+                'The study advisor can answer text questions. Please send a text message.',
+            );
+        }
+
+        if ($update->update_type === 'message' && filled($update->message_text)) {
+            $account = TelegramAccount::query()
+                ->where('telegram_user_id', $update->telegram_user_id)
+                ->where('chat_id', $update->chat_id)
+                ->whereNull('disabled_at')
+                ->first();
+
+            if ($account instanceof TelegramAccount) {
+                ProcessTelegramAiMessage::dispatch((int) $update->getKey());
+            } elseif (filled($update->chat_id)) {
+                $this->telegramBotClient->sendMessage(
+                    $update->chat_id,
+                    'Connect this private chat from StudyDesk Telegram settings before asking the study advisor.',
+                );
+            }
         }
 
         $update->forceFill(['processed_at' => now()])->save();

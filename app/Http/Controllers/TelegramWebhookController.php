@@ -68,17 +68,26 @@ class TelegramWebhookController extends Controller
             $text = $message['text'] ?? '';
             $tokenHash = null;
             $updateType = 'message';
+            $messageText = is_string($text) ? trim($text) : '';
 
-            if (is_string($text) && preg_match('/^\/start(?:@[A-Za-z0-9_]+)?(?:\s+([A-Za-z0-9_-]{32,128}))?$/', trim($text), $matches) === 1) {
+            if ($messageText !== '' && preg_match('/^\/start(?:@[A-Za-z0-9_]+)?(?:\s+(.+))?$/', $messageText, $matches) === 1) {
                 $updateType = 'start';
+                $messageText = null;
 
                 if (isset($matches[1])) {
                     $tokenHash = hash('sha256', $matches[1]);
                 }
+            } elseif ($messageText !== '' && mb_strlen($messageText) > 2000) {
+                $updateType = 'oversized_message';
+                $messageText = null;
+            } elseif ($messageText === '') {
+                $updateType = 'unsupported_message';
+                $messageText = null;
             }
 
             return [
                 'update_type' => $updateType,
+                'message_text' => $messageText,
                 'telegram_user_id' => (string) $from['id'],
                 'chat_id' => (string) $chat['id'],
                 'link_token_hash' => $tokenHash,

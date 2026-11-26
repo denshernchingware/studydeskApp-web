@@ -9,8 +9,8 @@ Not implemented. This guide describes the eventual setup and manual verification
 - `TELEGRAM_BOT_TOKEN`: token from BotFather, secret.
 - `TELEGRAM_WEBHOOK_SECRET`: high-entropy secret used with Telegram's webhook header.
 - `TELEGRAM_BOT_USERNAME`: bot username used to construct the private linking URL.
-- `GROQ_API_KEY`: already supplied by the owner; do not print its value. The SDK should consume it via config/environment.
-- `GROQ_MODEL` or equivalent app config: supported Groq model selected after checking provider availability.
+- `GROQ_API_KEY`: use the environment variable; the app accepts the existing `GROQ_API` variable as a fallback. Never print the key.
+- `GROQ_MODEL`: optional supported Groq model; defaults to `openai/gpt-oss-20b`.
 - `APP_TIMEZONE`: keep `Asia/Kolkata` unless the user chooses a different timezone.
 - Queue configuration: use a worker for outgoing reminders, AI responses, and weekly summaries; keep queue retries/backoff bounded.
 

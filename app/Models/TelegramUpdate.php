@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Model;
 #[Fillable([
     'update_id',
     'update_type',
+    'message_text',
     'telegram_user_id',
     'chat_id',
     'callback_query_id',
@@ -17,7 +18,7 @@ use Illuminate\Database\Eloquent\Model;
     'link_token_hash',
     'processed_at',
 ])]
-#[Hidden(['link_token_hash', 'callback_token_hash'])]
+#[Hidden(['link_token_hash', 'callback_token_hash', 'message_text'])]
 class TelegramUpdate extends Model
 {
     /**

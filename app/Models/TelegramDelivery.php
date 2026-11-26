@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\TelegramDeliveryStatus;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -23,6 +24,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
     'last_error',
     'sent_at',
 ])]
+#[Hidden(['message_text'])]
 class TelegramDelivery extends Model
 {
     /**

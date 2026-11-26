@@ -18,8 +18,10 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
     'weekly_summary_enabled',
     'weekly_summary_day',
     'weekly_summary_time',
+    'ai_conversation_id',
+    'ai_conversation_semester_id',
 ])]
-#[Hidden(['telegram_user_id', 'chat_id'])]
+#[Hidden(['telegram_user_id', 'chat_id', 'ai_conversation_id'])]
 class TelegramAccount extends Model
 {
     /**

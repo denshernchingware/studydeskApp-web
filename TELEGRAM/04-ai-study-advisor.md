@@ -2,46 +2,60 @@
 
 ## Status
 
-Not implemented. Depends on modules 01 and 05. The Laravel AI SDK is not installed yet.
+Implemented. Depends on Telegram account linking. The AI SDK conversation tables and Telegram AI fields are installed by the application migrations.
 
 ## Goal
 
-Use Laravel's AI SDK with the existing Groq API key to answer the linked owner's Telegram questions, especially which subjects to prioritize or study to make progress toward coverage goals.
+Use Laravel AI SDK with Groq to answer the linked owner's Telegram questions, especially which subjects to prioritize to make progress toward coverage targets.
 
-## Important data limitation
+## Data limitation
 
-The app currently stores subjects, timetable slots, attendance, and required-session targets. Those records do not describe chapters, readings, syllabus topics, or which pages the learner has completed. Until a syllabus/topic/reading-coverage module exists, the advisor may recommend **subjects and available study sessions** from schedule and progress data, but it must not invent chapter names or claim that it can calculate exact syllabus coverage. It should state when the data is insufficient and request or point to the missing syllabus information.
+StudyDesk stores subjects, timetable slots, attendance, and required-session targets. It does not store chapters, readings, syllabus topics, or completed pages. The advisor may recommend subjects and available sessions from stored progress, but it must not invent chapter names or claim exact syllabus coverage.
 
 ## Implementation steps
 
-1. [ ] Confirm the installed Laravel version and check the current Laravel AI SDK documentation before installing. Install `laravel/ai` only as part of the approved implementation. Publish the AI configuration and conversation migrations, then run migrations.
-2. [ ] Confirm `GROQ_API_KEY` is present without printing its value. Configure a supported Groq text model through application configuration/environment, keeping model choice configurable rather than hard-coding a model name.
-3. [ ] Create a dedicated study-advisor Agent with clear instructions: use supplied tool results for facts, distinguish stored facts from recommendations, show its reasoning briefly, do not fabricate syllabus/reading data, and acknowledge uncertainty.
-4. [ ] Create narrowly scoped read-only AI tools using Laravel AI SDK's `Tool` contract and schema/handler pattern. Suggested tools:
-   - `GetSemesterSubjects`: current or explicitly selected semester subjects and target counts.
-   - `GetStudySchedule`: upcoming/available slots and local start times.
-   - `GetAttendanceProgress`: expected, present, absent, unmarked, rate, and target progress per subject.
-   - `RecommendSubjectPriorities`: deterministic app-side ranking from incomplete targets, recent attendance, and upcoming schedule; return the factors so the model can explain the result.
-5. [ ] Bind every tool to the already linked authenticated owner. Do not allow a model-supplied user ID, arbitrary semester ID from another owner, raw SQL, filesystem access, general web search, or hidden application actions.
-6. [ ] Give the agent semester-aware context: active semester and date range, current local date/time, configured timezone, study start date, timetable, and relevant existing progress. Minimize payloads and limit returned history/data to what the question needs.
-7. [ ] Persist Telegram conversation history with the AI SDK conversation support or a project-conforming owner-scoped mapping. Store the Telegram chat-to-conversation ID mapping with a unique owner/chat relationship, and ensure a linked chat can access only its own conversation.
-8. [ ] Process incoming text via the queue after webhook validation. Apply message length/rate limits, handle unsupported input and provider failures gracefully, and send a concise Telegram response. Do not pass bot tokens, API keys, or unrelated profile data to the model.
-9. [ ] Keep AI tools read-only in this module. Attendance changes remain explicit Telegram button actions; any future AI-requested write must require a separate confirmation step and authorization.
-10. [ ] Add focused agent/tool tests using the SDK's testing helpers or faked provider responses. Include prompts such as “Which subjects should I read to cover my targets?” and verify the answer uses actual semester and progress values and states when topic-level data is missing.
+1. [x] Confirm Laravel 13 and install `laravel/ai` v1.4.2. Publish AI configuration and conversation migrations.
+2. [x] Configure Groq with `GROQ_API_KEY` and `GROQ_MODEL`. The model defaults to `openai/gpt-oss-20b`; the existing `GROQ_API` environment name is also accepted as a fallback.
+3. [x] Add the StudyAdvisor agent with grounding, brief reasoning, and missing-syllabus instructions.
+4. [x] Add read-only tools for semester subjects and targets, upcoming schedule, attendance progress, and deterministic subject priorities.
+5. [x] Bind tools to the Telegram-linked owner and their active semester. Tool schemas do not accept user or semester IDs.
+6. [x] Give each prompt a compact owner-scoped snapshot of subjects, progress, schedule, priorities, timezone, and semester dates.
+7. [x] Persist AI SDK conversations for the owner, keep the conversation ID on the Telegram account, check participant ownership before continuing, and start a new conversation after semester changes. Limit loaded history to 24 messages.
+8. [x] Queue incoming private-chat text after webhook validation. Reject input over 2,000 characters, rate limit to 10 questions per owner per minute, use the Telegram outbox for replies, and return a safe fallback on provider failure.
+9. [x] Keep all AI tools read-only. Attendance remains controlled by explicit Telegram attendance buttons.
+10. [ ] Run the manual prompts below and confirm responses use stored progress and disclose missing topic-level data.
 
-Laravel's AI SDK supports Groq, custom agents/tools, and persisted conversations. A tool defines a purpose, JSON schema, and handler; tools should expose only the capabilities the app intends to authorize. [Laravel AI SDK installation and Groq configuration](https://laravel.com/framework/docs/13.x/ai-sdk#installation) [Laravel AI tools](https://laravel.com/framework/docs/13.x/ai-sdk#tools) [Laravel AI conversations](https://laravel.com/framework/docs/13.x/ai-sdk#remembering-conversations)
+## Local setup and manual check
+
+Run database migrations:
+
+```powershell
+php artisan migrate
+```
+
+Set `GROQ_API_KEY` in the environment. The app also accepts the existing `GROQ_API` variable as a fallback. Change `GROQ_MODEL` if you want another Groq model that supports tool calling. Keep keys out of source control.
+
+Run a queue worker and message the linked private Telegram bot chat with prompts such as:
+
+```text
+Which subjects should I read to cover my targets?
+What should I study next based on my timetable and attendance?
+Which chapters should I read for my weakest subject?
+```
+
+The advisor should use stored subject, target, attendance, and schedule data for the first two prompts. For the chapter question, it should explain that syllabus and chapter information is not stored and must not invent chapter names. A real Groq request occurs only when a linked Telegram user sends a text question.
 
 ## Acceptance checks
 
-- Telegram questions are processed only after verifying the webhook and linked owner.
-- Tool results are constrained to the authenticated owner's selected/active semester.
-- The advisor accurately distinguishes measured data from its recommendation and does not invent reading topics.
-- If the user asks for specific chapters or syllabus coverage when none is stored, the advisor says the app lacks that data and asks for the syllabus/topic list.
-- Conversation history is isolated per linked owner/chat, bounded, and persisted through the configured AI SDK storage.
-- An AI tool call cannot write attendance, alter semester data, access another user's records, or make an external action.
+- Telegram questions are processed only after webhook validation and linked-owner verification.
+- Every tool is constrained to the linked owner's active semester.
+- The advisor distinguishes recorded values from recommendations and does not invent reading topics.
+- Missing syllabus/topic data is stated clearly when requested.
+- Conversation history is owner-scoped, semester-aware, and bounded.
+- AI tools cannot write attendance or alter semester data.
 
-## Verification plan
+## Manual verification checklist
 
-- Test owner isolation in every tool and cross-semester/date scoping.
-- Test a normal prioritization request, an empty-data request, a missing-syllabus request, provider timeout/rate-limit behavior, and malformed/oversized Telegram messages.
-- Use a mocked/faked AI provider for tests; reserve real Groq requests for an explicit local smoke-test command after configuration is complete.
+- [ ] Check owner isolation and semester/date bounds for each tool.
+- [ ] Check prioritization, empty data, missing syllabus, provider failures, throttling, and oversized messages.
+- [ ] Confirm conversation continuity and Telegram outbox delivery from a linked private chat.
