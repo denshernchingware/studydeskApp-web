@@ -12,3 +12,8 @@ Schedule::command('telegram:send-reminders')
     ->everyMinute()
     ->timezone(config('app.timezone'))
     ->withoutOverlapping(2);
+
+Schedule::command('telegram:send-weekly-summary')
+    ->everyMinute()
+    ->timezone(config('app.timezone'))
+    ->withoutOverlapping(2);

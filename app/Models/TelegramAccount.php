@@ -8,7 +8,17 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-#[Fillable(['user_id', 'telegram_user_id', 'chat_id', 'linked_at', 'disabled_at', 'reminders_enabled'])]
+#[Fillable([
+    'user_id',
+    'telegram_user_id',
+    'chat_id',
+    'linked_at',
+    'disabled_at',
+    'reminders_enabled',
+    'weekly_summary_enabled',
+    'weekly_summary_day',
+    'weekly_summary_time',
+])]
 #[Hidden(['telegram_user_id', 'chat_id'])]
 class TelegramAccount extends Model
 {
@@ -43,6 +53,8 @@ class TelegramAccount extends Model
             'linked_at' => 'datetime',
             'disabled_at' => 'datetime',
             'reminders_enabled' => 'boolean',
+            'weekly_summary_enabled' => 'boolean',
+            'weekly_summary_day' => 'integer',
         ];
     }
 }

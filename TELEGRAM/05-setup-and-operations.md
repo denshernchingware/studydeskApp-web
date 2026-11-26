@@ -18,7 +18,7 @@ Add variable names, but never real credentials, to `.env.example`. Ensure deploy
 
 ## Scheduler and queue implementation steps
 
-1. [ ] Register a minute-level reminder dispatch schedule and per-user weekly-summary schedule in the Laravel 13 scheduler using the app timezone.
+1. [x] Register minute-level reminder and per-account weekly-summary dispatch scans in the Laravel 13 scheduler using the app timezone.
 2. [ ] Add `withoutOverlapping()` for scans and use `onOneServer()` only if the app is later deployed with multiple scheduler hosts and a shared supported cache backend.
 3. [ ] Schedule only dispatch/scanning work; queue network calls and AI prompts so scheduler ticks remain short.
 4. [ ] Make outbox uniqueness and Telegram `update_id` uniqueness authoritative for idempotency; scheduler locks alone are not sufficient.
@@ -42,7 +42,7 @@ php artisan queue:work
 # Preview a reminder without sending (planned command)
 php artisan telegram:send-reminders --date=2026-11-25 --dry-run
 
-# Preview the completed week's report without sending (planned command)
+# Preview the previous completed week's report without sending
 php artisan telegram:send-weekly-summary --week-start=2026-11-16 --user=1 --dry-run
 
 # Optional real provider smoke test (planned command; sends a request to Groq)

@@ -16,6 +16,11 @@
                     <p class="text-gray-600 dark:text-gray-300">
                         Subject reminders are {{ $this->account->reminders_enabled ? 'enabled' : 'paused' }}.
                     </p>
+                    <p class="text-gray-600 dark:text-gray-300">
+                        Weekly summary is {{ $this->account->weekly_summary_enabled ? 'enabled' : 'paused' }} for
+                        {{ \App\Models\TimetableSlot::WEEKDAYS[$this->account->weekly_summary_day] ?? 'Sunday' }}
+                        at {{ substr($this->account->weekly_summary_time, 0, 5) }} ({{ config('app.timezone') }}).
+                    </p>
                 </div>
             @else
                 <div class="space-y-3 text-sm text-gray-600 dark:text-gray-300">

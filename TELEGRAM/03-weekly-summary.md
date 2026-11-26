@@ -2,7 +2,7 @@
 
 ## Status
 
-Not implemented. Depends on module 01 account linking and Telegram delivery.
+Implemented. Depends on module 01 account linking and the Telegram delivery outbox.
 
 ## Goal
 
@@ -16,26 +16,48 @@ Send the owner a concise weekly view of study attendance and subject progress on
 
 ## Implementation steps
 
-1. [ ] Add per-user weekly-summary enabled, weekday, and local-time preferences. Validate the timezone against the app's configured timezone policy.
-2. [ ] Add an idempotency key unique to owner, semester, week-start date, and notification type so retries do not send duplicate reports.
-3. [ ] Build the summary from `AttendanceStatistics` and existing expected-session calculations. Include expected sessions, marked sessions, present, absent, unmarked expected sessions, attendance rate (`present / (present + absent)`), and subject target progress.
-4. [ ] Keep all calculations owner-scoped and bound to the active semester's inclusive dates, timetable effective dates, and the completed week's dates. Expected-but-unmarked sessions must not count as absent or enter the attendance-rate denominator.
-5. [ ] Schedule summary dispatch at each user's configured local weekday/time. Queue delivery, use scheduler overlap protection, and rely on the unique idempotency record as the final duplicate safeguard.
-6. [ ] Format the Telegram message with the semester, reporting window, a small totals section, and the subjects needing attention. Keep the message concise and split it safely if Telegram's message length limit is reached.
-7. [ ] Add a dry-run command such as `telegram:send-weekly-summary --week-start=YYYY-MM-DD --user=<id> --dry-run` that previews computed statistics without sending.
+1. [x] Add per-account weekly-summary enabled, weekday, and local-time preferences. Weekday/time are interpreted in `APP_TIMEZONE`.
+2. [x] Add a unique outbox key scoped to owner, semester, and week-start date; queue retries cannot create a second report.
+3. [x] Build the summary using `AttendanceStatistics` for semester target progress and period-bounded queries for expected, marked, present, absent, and unmarked sessions.
+4. [x] Scope calculations to the owner, active semester, inclusive semester dates, study start, timetable effective dates, and the completed week's dates. Unmarked sessions are excluded from the attendance-rate denominator.
+5. [x] Scan due preferences each minute, queue delivery, use scheduler overlap protection, and persist the unique outbox record before dispatch.
+6. [x] Include the semester, Monday–Sunday report window, totals, attendance rate, and up to eight subjects needing attention. Cap the message below Telegram's text limit.
+7. [x] Add a dry-run command that previews the calculations without writing delivery records or contacting Telegram.
 
 Laravel's scheduler supports weekly/day/time scheduling and timezone-specific events. Use `withoutOverlapping()` for the dispatch task; the outbox uniqueness check still protects against retries and multiple invocations. For local development, Laravel provides `php artisan schedule:work`. [Laravel 13 task scheduling](https://laravel.com/framework/docs/13.x/scheduling)
+
+## Local commands
+
+Run the new account/outbox migrations before using this module:
+
+```powershell
+php artisan migrate
+```
+
+Preview the previous completed Monday–Sunday week for an account:
+
+```powershell
+php artisan telegram:send-weekly-summary --user=1 --dry-run
+```
+
+Preview a chosen completed week (the date must be a Monday):
+
+```powershell
+php artisan telegram:send-weekly-summary --week-start=2026-11-16 --user=1 --dry-run
+```
+
+The non-dry-run command queues summaries only when the user's configured weekday/time matches the current app-local minute. The scheduler registers this scan automatically; run `php artisan schedule:work` and a queue worker to process due deliveries.
 
 ## Acceptance checks
 
 - A completed week is calculated Monday through Sunday in the configured timezone and clipped to the selected semester range.
 - The message totals match dashboard and attendance-page statistics for the same owner, semester, and date window.
 - Unmarked expected sessions are reported separately and do not count as absent.
-- Each linked, enabled user receives at most one summary per semester/week.
+- Each linked user with weekly summaries enabled receives at most one summary per semester/week.
 - No message is sent for an unlinked or disabled account; dry-run never contacts Telegram.
 
 ## Verification plan
 
-- Test reports at Sunday/Monday boundaries, semester start/end, empty weeks, unmarked sessions, zero marked sessions, and completed-subject targets.
-- Test per-user schedule preferences, duplicate jobs, retries, timezone behavior, and message splitting.
-- Compare a dry-run report with the same date-filtered Filament attendance/dashboard totals.
+- [ ] Run the report at Sunday/Monday boundaries, semester start/end, empty weeks, unmarked sessions, zero marked sessions, and completed-subject targets.
+- [ ] Check per-account schedule preferences and duplicate dispatch behavior.
+- [ ] Compare a dry-run report with the same date-filtered Filament attendance/dashboard totals.

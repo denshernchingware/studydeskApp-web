@@ -12,8 +12,10 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
     'user_id',
     'telegram_account_id',
     'timetable_slot_id',
+    'semester_id',
     'session_date',
     'notification_type',
+    'message_text',
     'dedupe_key',
     'status',
     'attempts',
@@ -51,6 +53,16 @@ class TelegramDelivery extends Model
     public function timetableSlot(): BelongsTo
     {
         return $this->belongsTo(TimetableSlot::class);
+    }
+
+    /**
+     * Get the semester summarized by a weekly report.
+     *
+     * @return BelongsTo<Semester, $this>
+     */
+    public function semester(): BelongsTo
+    {
+        return $this->belongsTo(Semester::class);
     }
 
     /**
